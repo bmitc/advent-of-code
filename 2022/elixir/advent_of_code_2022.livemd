@@ -580,28 +580,18 @@ defmodule Day2.PartTwo do
   """
   @spec convert_strategy_to_round(round_strategy()) :: round()
   def convert_strategy_to_round(round_strategy) do
-    case {round_strategy.opponent, round_strategy.expected_result} do
-      {:rock, :win} -> :paper
-      {:rock, :lose} -> :scissors
-      {:paper, :win} -> :scissors
-      {:paper, :lose} -> :rock
-      {:scissors, :win} -> :rock
-      {:scissors, :lose} -> :paper
-      {move, :draw} -> move
-    end
-    |> create_round_from_strategy(round_strategy)
-  end
+    response =
+      case {round_strategy.opponent, round_strategy.expected_result} do
+        {:rock, :win} -> :paper
+        {:rock, :lose} -> :scissors
+        {:paper, :win} -> :scissors
+        {:paper, :lose} -> :rock
+        {:scissors, :win} -> :rock
+        {:scissors, :lose} -> :paper
+        {move, :draw} -> move
+      end
 
-  # Helper function to create a round strategy map from a round map, which
-  # contains the move the player should play
-  @spec create_round_from_strategy(move(), round_strategy()) :: round()
-  defp create_round_from_strategy(
-         response,
-         %{opponent: _, expected_result: _} = round_strategy
-       ) do
-    round_strategy
-    |> Map.delete(:expected_response)
-    |> Map.put(:response, response)
+    %{opponent: round_strategy.opponent, response: response}
   end
 
   @doc """
