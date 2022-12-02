@@ -1,0 +1,314 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Advent of Code 2021
+
+## Utilities
+
+```elixir
+defmodule Utilities do
+  @spec count_increases(Enum.t()) :: integer()
+  def count_increases(list) do
+    list
+    |> Enum.reduce({0, -1}, fn depth, {previous, count} ->
+      if depth - previous > 0 do
+        {depth, count + 1}
+      else
+        {depth, count}
+      end
+    end)
+    |> elem(1)
+  end
+
+  @spec multiply_tuple(number()) :: number()
+  def multiply_tuple({a, b}), do: a * b
+
+  def transpose(rows) do
+    rows
+    |> List.zip()
+    |> Enum.map(&Tuple.to_list/1)
+  end
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, Utilities, <<70, 79, 82, 49, 0, 0, 10, ...>>, {:transpose, 1}}
+```
+
+```elixir
+Utilities.transpose([[1, 2, 3], [4, 5, 6]])
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[[1, 4], [2, 5], [3, 6]]
+```
+
+## Day 1
+
+```elixir
+defmodule Day1 do
+  def depths() do
+    Path.join(__DIR__, "../data/day_01_input.txt")
+    |> Path.expand()
+    |> File.stream!()
+    |> Stream.map(fn line -> line |> String.trim() |> String.to_integer() end)
+  end
+
+  def number_of_increases() do
+    Utilities.count_increases(depths())
+  end
+
+  def windows() do
+    depths()
+    |> Enum.chunk_every(3, 1)
+    |> Enum.map(&Enum.sum/1)
+    |> Utilities.count_increases()
+  end
+
+  def part_one(), do: number_of_increases()
+  def part_two(), do: windows()
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, Day1, <<70, 79, 82, 49, 0, 0, 11, ...>>, {:part_two, 0}}
+```
+
+```elixir
+Day1.part_one()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+1616
+```
+
+```elixir
+Day1.part_two()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+1645
+```
+
+## Day 2
+
+```elixir
+defmodule Day2 do
+  def planned_course() do
+    Path.join(__DIR__, "../data/day_02_input.txt")
+    |> Path.expand()
+    |> File.stream!()
+    |> Stream.map(&String.trim/1)
+    |> Stream.map(&Day2.parse_command/1)
+  end
+
+  defp to_integer(string) do
+    string |> String.trim() |> String.to_integer()
+  end
+
+  def parse_command(<<"forward", amount::binary>>) do
+    {:forward, to_integer(amount)}
+  end
+
+  def parse_command(<<"up", amount::binary>>) do
+    {:up, to_integer(amount)}
+  end
+
+  def parse_command(<<"down", amount::binary>>) do
+    {:down, to_integer(amount)}
+  end
+
+  def handle_command({:forward, amount}, {horizontal, vertical}) do
+    {horizontal + amount, vertical}
+  end
+
+  def handle_command({:up, amount}, {horizontal, vertical}) do
+    {horizontal, vertical - amount}
+  end
+
+  def handle_command({:down, amount}, {horizontal, vertical}) do
+    {horizontal, vertical + amount}
+  end
+
+  def handle_command({:forward, amount}, {horizontal, vertical, aim}) do
+    {horizontal + amount, vertical + amount * aim, aim}
+  end
+
+  def handle_command({:up, amount}, {horizontal, vertical, aim}) do
+    {horizontal, vertical, aim - amount}
+  end
+
+  def handle_command({:down, amount}, {horizontal, vertical, aim}) do
+    {horizontal, vertical, aim + amount}
+  end
+
+  def final_position() do
+    {final_horizontal, final_vertical} =
+      planned_course()
+      |> Enum.reduce({0, 0}, &Day2.handle_command/2)
+
+    {final_horizontal, final_vertical}
+  end
+
+  def final_position_with_aim() do
+    {final_horizontal, final_vertical, final_aim} =
+      planned_course()
+      |> Enum.reduce({0, 0, 0}, &Day2.handle_command/2)
+
+    {final_horizontal, final_vertical, final_aim}
+  end
+
+  def part_one(), do: final_position() |> Utilities.multiply_tuple()
+
+  def part_two() do
+    {horizontal, vertical, _aim} = final_position_with_aim()
+    horizontal * vertical
+  end
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, Day2, <<70, 79, 82, 49, 0, 0, 18, ...>>, {:part_two, 0}}
+```
+
+```elixir
+Day2.part_one()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+1635930
+```
+
+```elixir
+Day2.part_two()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+1781819478
+```
+
+## Day 3
+
+```elixir
+defmodule Day3 do
+  @moduledoc """
+  https://adventofcode.com/2021/day/3
+  """
+
+  @type diagnostic_report() :: [[integer()]]
+  def diagnostic_report() do
+    Path.join(__DIR__, "../data/day_03_input.txt")
+    |> Path.expand()
+    |> File.stream!()
+    |> Stream.map(&String.trim/1)
+    |> Stream.map(&String.codepoints/1)
+    |> Stream.map(fn data -> Enum.map(data, &String.to_integer/1) end)
+    |> Enum.to_list()
+  end
+
+  def get_least_common_bit(%{0 => zeroes, 1 => ones}) do
+    if zeroes > ones, do: 1, else: 0
+  end
+
+  def get_most_common_bit(%{0 => zeroes, 1 => ones}) do
+    if zeroes < ones, do: 1, else: 0
+  end
+
+  def bit_frequencies() do
+    diagnostic_report()
+    |> Utilities.transpose()
+    |> Enum.map(&Enum.frequencies/1)
+  end
+
+  def gamma_rate() do
+    bit_frequencies()
+    |> Enum.map(&get_most_common_bit/1)
+    |> Integer.undigits(2)
+  end
+
+  def epsilon_rate() do
+    bit_frequencies()
+    |> Enum.map(&get_least_common_bit/1)
+    |> Integer.undigits(2)
+  end
+
+  def part_one(), do: gamma_rate() * epsilon_rate()
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, Day3, <<70, 79, 82, 49, 0, 0, 15, ...>>, {:part_one, 0}}
+```
+
+```elixir
+Day3.part_one()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+3959450
+```
+
+```elixir
+Day3.part_two()
+```
+
+## Tests
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule AdventOfCode.Tests do
+  use ExUnit.Case, async: true
+
+  test "Day 1" do
+    assert Day1.part_one() == 1616
+    assert Day1.part_two() == 1645
+  end
+
+  test "Day 2" do
+    assert Day2.part_one() == 1_635_930
+    assert Day2.part_two() == 1_781_819_478
+  end
+
+  test "Day 3" do
+    assert Day3.part_one() == 3_959_450
+  end
+end
+
+ExUnit.run()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+...
+Finished in 0.01 seconds (0.01s async, 0.00s sync)
+3 tests, 0 failures
+
+Randomized with seed 445642
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{excluded: 0, failures: 0, skipped: 0, total: 3}
+```

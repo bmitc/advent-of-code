@@ -1,0 +1,537 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Advent of Code 2022
+
+## Introduction
+
+These are solutions for [Advent of Code 2022](https://adventofcode.com/2022) written in Elixir. Elixir [Livebook](https://livebook.dev/) is utilized to create this notebook.
+
+The overall strategy is domain-driven design, in that each puzzle is modeled as a domain using Elixir types and functions. The intent is not to provide "clever" solutions that often utilize some sort of computational trickery but to provide a clear linear path from problem statement, a domain model of the problem, an implementation of that model, and then ultimately a solution. It is considered a failure if the solution does not essentially read like an Elixir encoding of the problem description.
+
+The following are provided:
+
+* Full solutions for each day
+* Documented modules, types, and functions
+* Typespecs for every type and function
+* Tests to help verify refactors that occur after a correct solution is arrived at
+
+It is for these reasons that the solutions are somewhat "verbose", if one really wants to use that term. I don't necessarily because I view these solutions are the minimum form required to provided the necessary function, a perspective of *form equals function*. The solutions provided here are fully industrialized and tend to be quite amenable to refactors, often making the transition from part one to part two quite nice and straightforward.
+
+For the most part, solutions are contained within a single `Day<number>` module. Solution values for the two parts are provided as functions `&part_one/0` and `&part_two/0`. However, some days may drastically alter the solution from part one. In cases such as those, two separate modules for the day, such as `Day<number>.PartOne` and `Day<number>.PartTwo`. Solution values in this case are provided as `&solution/0` in the respective module.
+
+## Utilities
+
+```elixir
+defmodule Utilities do
+  @moduledoc """
+  Provides utility functions to be used across days
+  """
+
+  @doc """
+  Reads the given day's data file of "day_<zero padded day number>_input.txt" as
+  a stream
+  """
+  @spec readDataStream(integer()) :: Stream.t()
+  def readDataStream(day) do
+    day_as_string =
+      day
+      |> Integer.to_string()
+      |> String.pad_leading(2, "0")
+
+    Path.join(__DIR__, "../data/day_#{day_as_string}_input.txt")
+    |> Path.expand()
+    |> File.stream!()
+    |> Stream.map(&String.trim/1)
+  end
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, Utilities, <<70, 79, 82, 49, 0, 0, 9, ...>>, {:readDataStream, 1}}
+```
+
+## Day 1
+
+```elixir
+defmodule Day1 do
+  @moduledoc """
+  Day 1's solutions
+  """
+
+  def calories() do
+    handleChunk = fn chunk ->
+      chunk
+      |> Enum.reverse()
+      |> Enum.map(&String.to_integer/1)
+    end
+
+    chunk_fun = fn element, acc ->
+      if element == "" do
+        # Emit chunk and reset accumulator
+        {:cont, handleChunk.(acc), []}
+      else
+        {:cont, [element | acc]}
+      end
+    end
+
+    after_fun = fn acc ->
+      {:cont, handleChunk.(acc), []}
+    end
+
+    Utilities.readDataStream(1)
+    |> Stream.chunk_while([], chunk_fun, after_fun)
+    |> Stream.with_index()
+    |> Enum.into(%{}, fn {value, key} -> {key, value} end)
+  end
+
+  def maxCalories() do
+    calories()
+    |> Enum.max(fn {_, a}, {_, b} -> Enum.sum(a) >= Enum.sum(b) end)
+  end
+
+  def sortedCalories() do
+    calories()
+    |> Enum.sort(fn {_, a}, {_, b} -> Enum.sum(a) >= Enum.sum(b) end)
+  end
+
+  def part_one() do
+    {_elf, calories} = maxCalories()
+    calories |> Enum.sum()
+  end
+
+  def part_two() do
+    sortedCalories()
+    |> Enum.take(3)
+    |> Enum.map(fn {_k, v} -> Enum.sum(v) end)
+    |> Enum.sum()
+  end
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, Day1, <<70, 79, 82, 49, 0, 0, 16, ...>>, {:part_two, 0}}
+```
+
+```elixir
+Day1.part_one()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+71780
+```
+
+```elixir
+Day1.part_two()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+212489
+```
+
+## Day 2
+
+```elixir
+defmodule Day2.PartOne do
+  @moduledoc """
+  Solution to Day 1 Part One
+  """
+
+  @typedoc """
+  Represents a move in the game of rock, paper, scissors
+  """
+  @type move() :: :rock | :paper | :scissors
+
+  @typedoc """
+  Represents a single round of the game rock, paper, scissors
+  """
+  @type round() :: %{
+          opponent: move(),
+          response: move()
+        }
+
+  @typedoc """
+  Represents the result of a single round of rock, paper, scissors
+  """
+  @type result() :: :win | :lose | :draw
+
+  @doc """
+  Parses a move consisting of "A", "B", "C", "X", "Y", "Z" into the corresponding
+  move of `:rock`, `:paper`, or `:scissors`
+  """
+  @spec parse_move(String.t()) :: move()
+  def parse_move(move) do
+    case move do
+      "A" -> :rock
+      "B" -> :paper
+      "C" -> :scissors
+      "X" -> :rock
+      "Y" -> :paper
+      "Z" -> :scissors
+    end
+  end
+
+  @doc """
+  List of all rounds
+  """
+  @spec rounds() :: [round()]
+  def rounds() do
+    Utilities.readDataStream(2)
+    |> Stream.map(fn <<opponent::bytes-size(1)>> <> " " <> response ->
+      %{opponent: parse_move(opponent), response: parse_move(response)}
+    end)
+    |> Enum.to_list()
+  end
+
+  @doc """
+  Judge the given round to determine if it is a win, loss, or draw for the player
+  """
+  @spec judge_round(round()) :: result()
+  def judge_round(%{opponent: opponent, response: response}) do
+    case {opponent, response} do
+      {:rock, :rock} -> :draw
+      {:rock, :paper} -> :win
+      {:rock, :scissors} -> :lose
+      {:paper, :rock} -> :lose
+      {:paper, :paper} -> :draw
+      {:paper, :scissors} -> :win
+      {:scissors, :rock} -> :win
+      {:scissors, :paper} -> :lose
+      {:scissors, :scissors} -> :draw
+    end
+  end
+
+  @doc """
+  Score the round according to the given rubric that calculates a score based upon the
+  reponse alone plus a score from the round's result
+  """
+  @spec score_round(round()) :: pos_integer()
+  def score_round(%{opponent: _, response: response} = round) do
+    response_score =
+      case response do
+        :rock -> 1
+        :paper -> 2
+        :scissors -> 3
+      end
+
+    outcome_score =
+      case judge_round(round) do
+        :win -> 6
+        :lose -> 0
+        :draw -> 3
+      end
+
+    response_score + outcome_score
+  end
+
+  @doc """
+  A list of all the rounds' scores
+  """
+  @spec scored_rounds() :: [pos_integer()]
+  def scored_rounds() do
+    rounds()
+    |> Enum.map(&score_round/1)
+  end
+
+  def solution(), do: scored_rounds() |> Enum.sum()
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, Day2.PartOne, <<70, 79, 82, 49, 0, 0, 18, ...>>, {:solution, 0}}
+```
+
+```elixir
+defmodule Day2.PartTwo do
+  @moduledoc """
+  Solution to Day 2 Part Two
+  """
+
+  @typedoc """
+  Represents a move in the game of rock, paper, scissors
+  """
+  @type move() :: :rock | :paper | :scissors
+
+  @typedoc """
+  Represents the result of a single round of rock, paper, scissors
+  """
+  @type result() :: :win | :lose | :draw
+
+  @typedoc """
+  Represents a single round of the game rock, paper, scissors
+  """
+  @type round() :: %{
+          opponent: move(),
+          response: move()
+        }
+
+  @typedoc """
+  Represents a strategy for a single round of the game rock, paper, scissors
+  """
+  @type round_strategy() :: %{
+          opponent: move(),
+          expected_result: result()
+        }
+
+  @doc """
+  Parses a move consisting of "A", "B", "C", "X", "Y", "Z" into the corresponding
+  move of `:rock`, `:paper`, or `:scissors`
+  """
+  @spec parse_move(String.t()) :: move()
+  def parse_move(move) do
+    case move do
+      "A" -> :rock
+      "B" -> :paper
+      "C" -> :scissors
+    end
+  end
+
+  @doc """
+  Parses an expected result consisting of "X", "Y", or "Z" into the corresponding
+  result of `:win`, `:lose`, or `:draw`
+  """
+  @spec parse_expected_result(String.t()) :: result()
+  def parse_expected_result(move) do
+    case move do
+      "X" -> :lose
+      "Y" -> :draw
+      "Z" -> :win
+    end
+  end
+
+  @doc """
+  List of all round stategies
+  """
+  @spec round_strategies() :: [round_strategy()]
+  def round_strategies() do
+    Utilities.readDataStream(2)
+    |> Stream.map(fn <<opponent::bytes-size(1)>> <> " " <> expected_result ->
+      %{
+        opponent: parse_move(opponent),
+        expected_result: parse_expected_result(expected_result)
+      }
+    end)
+    |> Enum.to_list()
+  end
+
+  @doc """
+  Judge the given round to determine if it is a win, loss, or draw for the player
+  """
+  @spec judge_round(round()) :: result()
+  def judge_round(%{opponent: opponent, response: response}) do
+    case {opponent, response} do
+      {:rock, :rock} -> :draw
+      {:rock, :paper} -> :win
+      {:rock, :scissors} -> :lose
+      {:paper, :rock} -> :lose
+      {:paper, :paper} -> :draw
+      {:paper, :scissors} -> :win
+      {:scissors, :rock} -> :win
+      {:scissors, :paper} -> :lose
+      {:scissors, :scissors} -> :draw
+    end
+  end
+
+  @doc """
+  Score the round according to the given rubric that calculates a score based upon the
+  reponse alone plus a score from the round's result
+  """
+  @spec score_round(round()) :: pos_integer()
+  def score_round(%{opponent: _, response: response} = round) do
+    response_score =
+      case response do
+        :rock -> 1
+        :paper -> 2
+        :scissors -> 3
+      end
+
+    outcome_score =
+      case judge_round(round) do
+        :win -> 6
+        :lose -> 0
+        :draw -> 3
+      end
+
+    response_score + outcome_score
+  end
+
+  @doc """
+  Convert a strategy to a round by computing which move is required to respond to
+  the opponent to guarantee the expected result
+  """
+  @spec convert_strategy_to_round(round_strategy()) :: round()
+  def convert_strategy_to_round(round_strategy) do
+    case {round_strategy.opponent, round_strategy.expected_result} do
+      {:rock, :win} -> :paper
+      {:rock, :lose} -> :scissors
+      {:paper, :win} -> :scissors
+      {:paper, :lose} -> :rock
+      {:scissors, :win} -> :rock
+      {:scissors, :lose} -> :paper
+      {move, :draw} -> move
+    end
+    |> create_round_from_strategy(round_strategy)
+  end
+
+  # Helper function to create a round strategy map from a round map, which
+  # contains the move the player should play
+  @spec create_round_from_strategy(move(), round_strategy()) :: round()
+  defp create_round_from_strategy(
+         response,
+         %{opponent: _, expected_result: _} = round_strategy
+       ) do
+    round_strategy
+    |> Map.delete(:expected_response)
+    |> Map.put(:response, response)
+  end
+
+  @doc """
+  A list of all the rounds' scores
+  """
+  @spec scored_rounds_with_strategy() :: [pos_integer()]
+  def scored_rounds_with_strategy() do
+    round_strategies()
+    |> Enum.map(&convert_strategy_to_round/1)
+    |> Enum.map(&score_round/1)
+  end
+
+  def solution(), do: scored_rounds_with_strategy() |> Enum.sum()
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, Day2.PartTwo, <<70, 79, 82, 49, 0, 0, 24, ...>>, {:solution, 0}}
+```
+
+```elixir
+Day2.PartOne.rounds()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[
+  %{opponent: :paper, response: :paper},
+  %{opponent: :rock, response: :scissors},
+  %{opponent: :scissors, response: :scissors},
+  %{opponent: :rock, response: :paper},
+  %{opponent: :rock, response: :paper},
+  %{opponent: :paper, response: :paper},
+  %{opponent: :scissors, response: :paper},
+  %{opponent: :rock, response: :paper},
+  %{opponent: :paper, response: :paper},
+  %{opponent: :paper, response: :paper},
+  %{opponent: :rock, response: :paper},
+  %{opponent: :paper, response: :scissors},
+  %{opponent: :paper, response: :paper},
+  %{opponent: :rock, response: :paper},
+  %{opponent: :scissors, response: :paper},
+  %{opponent: :paper, response: :rock},
+  %{opponent: :paper, response: :paper},
+  %{opponent: :paper, response: :paper},
+  %{opponent: :paper, response: :paper},
+  %{opponent: :scissors, response: :paper},
+  %{opponent: :paper, response: :paper},
+  %{opponent: :rock, response: :paper},
+  %{opponent: :paper, response: :paper},
+  %{opponent: :rock, response: :paper},
+  %{opponent: :paper, response: :paper},
+  %{opponent: :scissors, response: :paper},
+  %{opponent: :rock, response: :paper},
+  %{opponent: :paper, response: :rock},
+  %{opponent: :paper, response: :paper},
+  %{opponent: :paper, response: :paper},
+  %{opponent: :paper, response: :rock},
+  %{opponent: :paper, response: :paper},
+  %{opponent: :scissors, response: :paper},
+  %{opponent: :paper, response: :paper},
+  %{opponent: :scissors, response: :scissors},
+  %{opponent: :rock, response: :rock},
+  %{opponent: :paper, response: :paper},
+  %{opponent: :paper, response: :paper},
+  %{opponent: :rock, response: :scissors},
+  %{opponent: :paper, response: :rock},
+  %{opponent: :scissors, response: :paper},
+  %{opponent: :scissors, response: :scissors},
+  %{opponent: :paper, response: :paper},
+  %{opponent: :paper, response: :paper},
+  %{opponent: :rock, response: :paper},
+  %{opponent: :paper, response: :rock},
+  %{opponent: :paper, response: :paper},
+  %{opponent: :paper, response: :paper},
+  %{opponent: :paper, ...},
+  %{...},
+  ...
+]
+```
+
+```elixir
+Day2.PartOne.solution()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+10404
+```
+
+```elixir
+Day2.PartTwo.solution()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+10334
+```
+
+## Tests
+
+Writing tests for the solutions is important to re-verify solutions for changes that occur after a solution is first submitted and verified as correct. This ensures the solutions stay correct after refactors.
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule AdventOfCode.Tests do
+  use ExUnit.Case, async: true
+
+  test "Day 1" do
+    assert Day1.part_one() == 71780
+    assert Day1.part_two() == 212_489
+  end
+
+  test "Day 2" do
+    assert Day2.PartOne.solution() == 10404
+    assert Day2.PartTwo.solution() == 10334
+  end
+end
+
+ExUnit.run()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+..
+Finished in 0.00 seconds (0.00s async, 0.00s sync)
+2 tests, 0 failures
+
+Randomized with seed 488396
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{excluded: 0, failures: 0, skipped: 0, total: 2}
+```
