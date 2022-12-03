@@ -43,21 +43,41 @@ defmodule Utilities do
     |> File.stream!()
     |> Stream.map(&String.trim/1)
   end
+
+  @doc """
+  Tests whether the entire string is uppercase
+  """
+  @spec is_uppercase(String.t()) :: boolean()
+  def is_uppercase(string), do: string == String.upcase(string)
+
+  @doc """
+  Tests whether the entire string is lowercase
+  """
+  @spec is_lowercase(String.t()) :: boolean()
+  def is_lowercase(string), do: string == String.downcase(string)
+
+  def mapsets_intersections(mapsets) = 
 end
+```
+
+```elixir
+Utilities.is_lowercase(to_string(['L']))
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-{:module, Utilities, <<70, 79, 82, 49, 0, 0, 9, ...>>, {:readDataStream, 1}}
+false
 ```
 
 ## Day 1
 
+https://adventofcode.com/2022/day/1
+
 ```elixir
 defmodule Day1 do
   @moduledoc """
-  Day 1's solutions
+  Solutions for Day 1
   """
 
   @doc """
@@ -276,10 +296,12 @@ Day1.part_two()
 
 ## Day 2
 
+https://adventofcode.com/2022/day/2
+
 ```elixir
 defmodule Day2.PartOne do
   @moduledoc """
-  Solution to Day 1 Part One
+  Solution for Day 2 Part One
   """
 
   @typedoc """
@@ -463,7 +485,7 @@ Day2.PartOne.solution()
 ```elixir
 defmodule Day2.PartTwo do
   @moduledoc """
-  Solution to Day 2 Part Two
+  Solution for Day 2 Part Two
   """
 
   @typedoc """
@@ -686,6 +708,194 @@ Day2.PartTwo.solution()
 10334
 ```
 
+## Day 3
+
+https://adventofcode.com/2022/day/3
+
+<!-- livebook:{"break_markdown":true} -->
+
+This solution could probably be cleaned up a bit. As it is, there is some conversion back and forth between strings and charlists, and those conversions could probably be modded out.
+
+```elixir
+defmodule Day3 do
+  @moduledoc """
+  Solutions for Day 3
+  """
+
+  @typedoc """
+  Represents a single compartment
+  """
+  @type compartment() :: charlist()
+
+  @typedoc """
+  Represents a rucksack which consists of two equally sized compartments
+  """
+  @type rucksack() :: {
+          first_compartment :: compartment(),
+          second_compartment :: compartment()
+        }
+
+  @doc """
+  Parse a rucksack string into a rucksack 2-tuple for the two
+  compartments
+  """
+  @spec parse_rucksack(String.t()) :: rucksack()
+  def parse_rucksack(data) do
+    data
+    |> String.to_charlist()
+    |> Enum.split(div(String.length(data), 2))
+  end
+
+  @doc """
+  A list of all the rucksacks
+  """
+  @spec rucksacks() :: [rucksack()]
+  def rucksacks() do
+    Utilities.readDataStream(3)
+    |> Enum.map(&parse_rucksack/1)
+  end
+
+  @doc """
+  Given a string with a single codepoint, calculate its priority according to the
+  rubric of a -> z has priority 1 -> 26 and A -> Z has priority 27 -> 52
+  """
+  @spec assign_item_priority(String.t()) :: pos_integer()
+  def assign_item_priority(item) when is_binary(item) do
+    [codepoint] = String.to_charlist(item)
+
+    if Utilities.is_lowercase(item) do
+      codepoint - ?a + 1
+    else
+      codepoint - ?A + 27
+    end
+  end
+
+  def part_one() do
+    rucksacks()
+    # Convert each rucksack's compartments into sets and then find their
+    # intersection and then assign a priority to that single element in
+    # the intersection
+    |> Enum.map(fn {first, second} ->
+      MapSet.intersection(MapSet.new(first), MapSet.new(second))
+      |> MapSet.to_list()
+      |> to_string()
+      |> assign_item_priority()
+    end)
+    # Sum up all the priorities, with one priority from each rucksack
+    |> Enum.sum()
+  end
+
+  def part_two() do
+    rucksacks()
+    # Chunk every three rucksucks into a group
+    |> Enum.chunk(3)
+    # Convert all rucksacks in the group to sets and find their intersection
+    # and then assign a priority to that single element in the intersection
+    |> Enum.map(fn chunk ->
+      chunk
+      |> Enum.map(fn {first, second} ->
+        (first ++ second)
+        |> MapSet.new()
+      end)
+      |> Enum.reduce(&MapSet.intersection/2)
+      |> MapSet.to_list()
+      |> to_string()
+      |> assign_item_priority()
+    end)
+    # Sum up all the priorities, with one priority from each group
+    |> Enum.sum()
+  end
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, Day3, <<70, 79, 82, 49, 0, 0, 18, ...>>, {:part_two, 0}}
+```
+
+```elixir
+Day3.rucksacks()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[
+  {'WwcsbsWw', 'spmFTGVV'},
+  {'RHtMDHdSMnDBGMSDvnvDjt', 'mpTpjTFggpmjmTFggTjmpP'},
+  {'vtCSGRMBDzHddvBHBzR', 'hrlcZhlLzWNlqblhzcr'},
+  {'shhszHNHHZWqSzV', 'NdClMjlFjBBbNTB'},
+  {'tQQGmnrMnJnGfmvrRR', 'PCjlbljFBdjFCjTjnP'},
+  {'mRwtfGrMmJtwRDvQJQrJpM', 'LSzVDHzhzHZqZzqSzcWVWH'},
+  {'WsWWgrtgsrhTQtsFcWPc', 'RMCCTvqvMvqNNqMMHlMq'},
+  {'bBJrBGbzzLJznJrbSDGGJ', 'LqmlvqMqvlmLHRqRZZRNZ'},
+  {'bzJfDGVSzVrJGwjVG', 'PPpQthdPsPpjdphsc'},
+  {'pJpCCBSWlczWWBW', 'MHdMmMsFmpddrgF'},
+  {'wfVqZZGVQv', 'zsMqmMgHjm'},
+  {'vDZGvPttQTVtGDQDDDGw', 'bSCcSJSCJWTcRRSRczRJ'},
+  {'HLVHsVWLwbWswbpWFWrrmT', 'hfTPNnhNSDDNhDfznTnhnS'},
+  {'pBRcvGvvBtpGcqqQvgcp', 'hPfzfDGhzdzPDzDDhnhS'},
+  {'ZQRvqBptjJgZCtJqq', 'MMMLHWwMWZWHHFFHm'},
+  {'PvPFPvLLLSvNFvQNWNPvrPLr', 'ZjwhMttTwtTtQZBwqjqtZqwM'},
+  {'HJDDbHjgppzCDCmzpgzsGbCs', 'TMZqZllqhJBhMTtVBBhMtMth'},
+  {'zgGncmGGzHCnHDpDgDCGsm', 'FLLPFjPRRWLRjdcjrcdRLd'},
+  {'zHnWzntnBRWTSBzRBdd', 'pFvZVcHpLFvjvLppvHP'},
+  {'MmmWmNGQhbC', 'pZVLLbccvpj'},
+  {'QDMCGrNWfwN', 'znBJsJzDBdg'},
+  {'tcRcZccZmdZJctRcj', 'rlhNNDfrdNdSfNsNT'},
+  {'QHQpBVvMpRMwgBgvnHR', 'FlhrSsgNFThgTFFflNS'},
+  {'vvHpVBBBGBppHvpLvHG', 'bjmmtCqWLJJZRzZZZZb'},
+  {'ZBtTDZRWsTsDZVWVZD', 'mjpbLbpSSzmLpWrbrS'},
+  {'MFNNFvvwFHwlh', 'mNrCStLNtjzrb'},
+  {'vwffwcHwflGqGflHJf', 'DBBZtQVBgZQJtBBsnT'},
+  {'pTJcmMJTspmpMZZJJZ', 'HCQQMzPBlQdWWWFzWP'},
+  {'LDnwrdnDnqjfqgvfDjrf', 'FlBBPFHFSHPQCBvQSSWB'},
+  {'nLbjgLjdbrwV', 'RcppsscJVRRR'},
+  {'mHnfggmM', 'tpHPPBCs'},
+  {'PJjlQQRrJhJNPP', 'TtBsCbCCTlpptd'},
+  {'rSSDhNQwShRRjh', 'mMPmzMDfPmfLzL'},
+  {'HzLFBgrCthtFrrhFSCCCvB', 'QNRVmJJJmnpnddmppddVtJ'},
+  {'MPZsjDWPjZs', 'VzNTzpVdRdZ'},
+  {'qMfjWfwclsPsjwzq', 'HgLFhwGFwHrFFrSC'},
+  {'llllmSbhNmSbNzlPmRN', 'CcgLLchHHpTGsCTQGpT'},
+  {'dVjBrvBB', 'VLJQsLpC'},
+  {'frZBWBDMFnd', 'StFsSwzlPlq'},
+  {'vmTVVtmJHwCwDlltt', 'TsrcPcMrfqPMMpjMq'},
+  {'LQGBRgGGRNgGgBhgzH', 'fpjPqsMjpLcLjrPLpq'},
+  {'BdgzgSRGBnN', 'HJtJlVStVmt'},
+  {'FbDQsFjPVHFZFSbrVjSVv', 'MJlGBJhDcqBBllJGccJnh'},
+  {'RfTCTTpmppfgwCpwpLw', 'RMnMGMlcPGqhddPcJnl'},
+  {'zgLPLNCCpLggzmTzTWm', 'VrjVvrNvjjjvbVHQZZH'},
+  {'RBjjpwmRszB', 'dvhLdSvpVpV'},
+  {'GrbfbJWmQJGWrGZZQMb', 'SLggfCgSHhCSgShghSC'},
+  {'DWNDZQcrbWQrZJZGQQZ', 'PsztzBsPmBTzwcwRwjT'},
+  {'rlvgglvZqbrbWbWWdvdm', ...},
+  {...},
+  ...
+]
+```
+
+```elixir
+Day3.part_one()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+7850
+```
+
+```elixir
+Day3.part_two()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+2581
+```
+
 ## Tests
 
 Writing tests for the solutions is important to re-verify solutions for changes that occur after a solution is first submitted and verified as correct. This ensures the solutions stay correct after refactors.
@@ -705,6 +915,11 @@ defmodule AdventOfCode.Tests do
     assert Day2.PartOne.solution() == 10404
     assert Day2.PartTwo.solution() == 10334
   end
+
+  test "Day 3" do
+    assert Day3.part_one() == 7850
+    assert Day3.part_two() == 2581
+  end
 end
 
 ExUnit.run()
@@ -713,9 +928,9 @@ ExUnit.run()
 <!-- livebook:{"output":true} -->
 
 ```
-..
+...
 Finished in 0.01 seconds (0.01s async, 0.00s sync)
-2 tests, 0 failures
+3 tests, 0 failures
 
 Randomized with seed 297110
 ```
@@ -723,5 +938,5 @@ Randomized with seed 297110
 <!-- livebook:{"output":true} -->
 
 ```
-%{excluded: 0, failures: 0, skipped: 0, total: 2}
+%{excluded: 0, failures: 0, skipped: 0, total: 3}
 ```
