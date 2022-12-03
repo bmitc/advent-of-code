@@ -55,19 +55,13 @@ defmodule Utilities do
   """
   @spec is_lowercase(String.t()) :: boolean()
   def is_lowercase(string), do: string == String.downcase(string)
-
-  def mapsets_intersections(mapsets) = 
 end
-```
-
-```elixir
-Utilities.is_lowercase(to_string(['L']))
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-false
+{:module, Utilities, <<70, 79, 82, 49, 0, 0, 12, ...>>, {:is_lowercase, 1}}
 ```
 
 ## Day 1
@@ -712,10 +706,6 @@ Day2.PartTwo.solution()
 
 https://adventofcode.com/2022/day/3
 
-<!-- livebook:{"break_markdown":true} -->
-
-This solution could probably be cleaned up a bit. As it is, there is some conversion back and forth between strings and charlists, and those conversions could probably be modded out.
-
 ```elixir
 defmodule Day3 do
   @moduledoc """
@@ -756,17 +746,19 @@ defmodule Day3 do
   end
 
   @doc """
-  Given a string with a single codepoint, calculate its priority according to the
+  Given a charlist of a single element, calculate its priority according to the
   rubric of a -> z has priority 1 -> 26 and A -> Z has priority 27 -> 52
   """
-  @spec assign_item_priority(String.t()) :: pos_integer()
-  def assign_item_priority(item) when is_binary(item) do
-    [codepoint] = String.to_charlist(item)
-
-    if Utilities.is_lowercase(item) do
-      codepoint - ?a + 1
+  @spec assign_item_priority(charlist()) :: pos_integer()
+  def assign_item_priority([char] = charlist) do
+    # Note that all codepoints after 'a' and 'A' are sequential up to 'z'
+    # and 'Z', respectively.
+    if Utilities.is_lowercase(to_string(charlist)) do
+      # Assigns a -> z the priority 1 -> 26 by normalizing against the codepoint for 'a'
+      char - ?a + 1
     else
-      codepoint - ?A + 27
+      # Assigns A -> Z the priority 27 -> 52 by normalizing against the codepoint for 'A'
+      char - ?A + 27
     end
   end
 
@@ -777,8 +769,8 @@ defmodule Day3 do
     # the intersection
     |> Enum.map(fn {first, second} ->
       MapSet.intersection(MapSet.new(first), MapSet.new(second))
+      # Strip away the MapSet, leaving a charlist
       |> MapSet.to_list()
-      |> to_string()
       |> assign_item_priority()
     end)
     # Sum up all the priorities, with one priority from each rucksack
@@ -798,10 +790,11 @@ defmodule Day3 do
         |> MapSet.new()
       end)
       |> Enum.reduce(&MapSet.intersection/2)
+      # Strip away the MapSet, leaving a charlist
       |> MapSet.to_list()
-      |> to_string()
       |> assign_item_priority()
     end)
+    |> IO.inspect()
     # Sum up all the priorities, with one priority from each group
     |> Enum.sum()
   end
@@ -811,7 +804,7 @@ end
 <!-- livebook:{"output":true} -->
 
 ```
-{:module, Day3, <<70, 79, 82, 49, 0, 0, 18, ...>>, {:part_two, 0}}
+{:module, Day3, <<70, 79, 82, 49, 0, 0, 17, ...>>, {:part_two, 0}}
 ```
 
 ```elixir
@@ -893,6 +886,14 @@ Day3.part_two()
 <!-- livebook:{"output":true} -->
 
 ```
+[33, 39, 18, 26, 16, 10, 49, 44, 20, 4, 42, 26, 19, 34, 42, 13, 39, 4, 46, 20,
+ 44, 17, 44, 49, 4, 2, 38, 30, 23, 12, 17, 43, 32, 7, 8, 52, 20, 8, 33, 42, 12,
+ 20, 43, 48, 4, 28, 2, 44, 20, 20, ...]
+```
+
+<!-- livebook:{"output":true} -->
+
+```
 2581
 ```
 
@@ -928,7 +929,10 @@ ExUnit.run()
 <!-- livebook:{"output":true} -->
 
 ```
-...
+.[33, 39, 18, 26, 16, 10, 49, 44, 20, 4, 42, 26, 19, 34, 42, 13, 39, 4, 46, 20,
+ 44, 17, 44, 49, 4, 2, 38, 30, 23, 12, 17, 43, 32, 7, 8, 52, 20, 8, 33, 42, 12,
+ 20, 43, 48, 4, 28, 2, 44, 20, 20, ...]
+..
 Finished in 0.01 seconds (0.01s async, 0.00s sync)
 3 tests, 0 failures
 
