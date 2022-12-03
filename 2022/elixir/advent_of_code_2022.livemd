@@ -780,7 +780,7 @@ defmodule Day3 do
 
   def part_two() do
     rucksacks()
-    # Chunk every three rucksucks into a group
+    # Chunk every three rucksacks into a group
     |> Enum.chunk(3)
     # Convert all rucksacks in the group to sets and find their intersection
     # and then assign a priority to that single element in the intersection
