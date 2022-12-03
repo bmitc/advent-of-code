@@ -795,7 +795,6 @@ defmodule Day3 do
       |> MapSet.to_list()
       |> assign_item_priority()
     end)
-    |> IO.inspect()
     # Sum up all the priorities, with one priority from each group
     |> Enum.sum()
   end
@@ -887,14 +886,6 @@ Day3.part_two()
 <!-- livebook:{"output":true} -->
 
 ```
-[33, 39, 18, 26, 16, 10, 49, 44, 20, 4, 42, 26, 19, 34, 42, 13, 39, 4, 46, 20,
- 44, 17, 44, 49, 4, 2, 38, 30, 23, 12, 17, 43, 32, 7, 8, 52, 20, 8, 33, 42, 12,
- 20, 43, 48, 4, 28, 2, 44, 20, 20, ...]
-```
-
-<!-- livebook:{"output":true} -->
-
-```
 2581
 ```
 
@@ -930,10 +921,7 @@ ExUnit.run()
 <!-- livebook:{"output":true} -->
 
 ```
-.[33, 39, 18, 26, 16, 10, 49, 44, 20, 4, 42, 26, 19, 34, 42, 13, 39, 4, 46, 20,
- 44, 17, 44, 49, 4, 2, 38, 30, 23, 12, 17, 43, 32, 7, 8, 52, 20, 8, 33, 42, 12,
- 20, 43, 48, 4, 28, 2, 44, 20, 20, ...]
-..
+...
 Finished in 0.01 seconds (0.01s async, 0.00s sync)
 3 tests, 0 failures
 
