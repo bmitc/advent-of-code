@@ -731,6 +731,7 @@ defmodule Day3 do
   """
   @spec parse_rucksack(String.t()) :: rucksack()
   def parse_rucksack(data) do
+    # Note that compartments are specified to be of the same length
     data
     |> String.to_charlist()
     |> Enum.split(div(String.length(data), 2))
