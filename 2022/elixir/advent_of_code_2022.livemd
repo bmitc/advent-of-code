@@ -31,8 +31,8 @@ defmodule Utilities do
   Reads the given day's data file of "day_<zero padded day number>_input.txt" as
   a stream
   """
-  @spec readDataStream(integer()) :: Stream.t()
-  def readDataStream(day) do
+  @spec read_data(integer()) :: Stream.t()
+  def read_data(day) do
     day_as_string =
       day
       |> Integer.to_string()
@@ -99,7 +99,7 @@ defmodule Day1 do
       {:cont, handleChunk.(acc), []}
     end
 
-    Utilities.readDataStream(1)
+    Utilities.read_data(1)
     |> Stream.chunk_while([], chunk_fun, after_fun)
     |> Stream.with_index()
     |> Enum.into(%{}, fn {value, key} -> {key, value} end)
@@ -141,7 +141,7 @@ end
 <!-- livebook:{"output":true} -->
 
 ```
-{:module, Day1, <<70, 79, 82, 49, 0, 0, 17, ...>>, {:part_two, 0}}
+{:module, Day1, <<70, 79, 82, 49, 0, 0, 18, ...>>, {:part_two, 0}}
 ```
 
 ```elixir
@@ -337,7 +337,7 @@ defmodule Day2.PartOne do
   """
   @spec rounds() :: [round()]
   def rounds() do
-    Utilities.readDataStream(2)
+    Utilities.read_data(2)
     |> Stream.map(fn <<opponent::bytes-size(1)>> <> " " <> response ->
       %{opponent: parse_move(opponent), response: parse_move(response)}
     end)
@@ -539,7 +539,7 @@ defmodule Day2.PartTwo do
   """
   @spec round_strategies() :: [round_strategy()]
   def round_strategies() do
-    Utilities.readDataStream(2)
+    Utilities.read_data(2)
     |> Stream.map(fn <<opponent::bytes-size(1)>> <> " " <> expected_result ->
       %{
         opponent: parse_move(opponent),
@@ -742,7 +742,7 @@ defmodule Day3 do
   """
   @spec rucksacks() :: [rucksack()]
   def rucksacks() do
-    Utilities.readDataStream(3)
+    Utilities.read_data(3)
     |> Enum.map(&parse_rucksack/1)
   end
 
@@ -781,7 +781,7 @@ defmodule Day3 do
   def part_two() do
     rucksacks()
     # Chunk every three rucksacks into a group
-    |> Enum.chunk(3)
+    |> Enum.chunk_every(3)
     # Convert all rucksacks in the group to sets and find their intersection
     # and then assign a priority to that single element in the intersection
     |> Enum.map(fn chunk ->
@@ -804,7 +804,7 @@ end
 <!-- livebook:{"output":true} -->
 
 ```
-{:module, Day3, <<70, 79, 82, 49, 0, 0, 17, ...>>, {:part_two, 0}}
+{:module, Day3, <<70, 79, 82, 49, 0, 0, 18, ...>>, {:part_two, 0}}
 ```
 
 ```elixir
@@ -889,6 +889,103 @@ Day3.part_two()
 2581
 ```
 
+## Day 4
+
+https://adventofcode.com/2022/day/4
+
+```elixir
+defmodule Day4 do
+  @moduledoc """
+  Solutions for Day 4
+  """
+
+  @typedoc """
+  Represents a pairing of two elf's section assignments. The section assignments
+  are represented by Elixir `Range`s.
+  """
+  @type assignment_pair() :: {Range.t(), Range.t()}
+
+  @doc """
+  Parse an assignment pair string into a tuple of section assignment ranges
+
+  ## Examples:
+    iex> Day4.parse_assignment_pair("2-4,6-8")
+    {2..4, 6..8}
+  """
+  @spec parse_assignment_pair(String.t()) :: assignment_pair()
+  def parse_assignment_pair(string) do
+    [[a_start, a_end], [b_start, b_end]] =
+      for range <- String.split(string, ",", trim: true) do
+        String.split(range, "-", trim: true)
+        |> Enum.map(&String.to_integer/1)
+      end
+
+    {Range.new(a_start, a_end), Range.new(b_start, b_end)}
+  end
+
+  @doc """
+  List of all the assignment pairs
+  """
+  @spec assignment_pairs() :: [assignment_pair()]
+  def assignment_pairs() do
+    Utilities.read_data(4)
+    |> Enum.map(&parse_assignment_pair/1)
+  end
+
+  @doc """
+  Determines if range 1 is a subset of range 2
+  """
+  @spec range_subset?(Range.t(), Range.t()) :: boolean()
+  def range_subset?(range1, range2) do
+    MapSet.subset?(MapSet.new(range1), MapSet.new(range2))
+  end
+
+  @doc """
+  Determines if one of the ranges is fully contained in (i.e., a subset of) the other
+  """
+  @spec range_contained_in_the_other?(Range.t(), Range.t()) :: boolean()
+  def range_contained_in_the_other?(range1, range2) do
+    range_subset?(range1, range2) or range_subset?(range2, range1)
+  end
+
+  def part_one() do
+    assignment_pairs()
+    |> Enum.count(fn {range1, range2} -> range_contained_in_the_other?(range1, range2) end)
+  end
+
+  def part_two() do
+    assignment_pairs()
+    |> Enum.count(fn {range1, range2} -> !Range.disjoint?(range1, range2) end)
+  end
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, Day4, <<70, 79, 82, 49, 0, 0, 18, ...>>, {:part_two, 0}}
+```
+
+```elixir
+Day4.part_one()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+462
+```
+
+```elixir
+Day4.part_two()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+835
+```
+
 ## Tests
 
 Writing tests for the solutions is important to re-verify solutions for changes that occur after a solution is first submitted and verified as correct. This ensures the solutions stay correct after refactors.
@@ -900,18 +997,23 @@ defmodule AdventOfCode.Tests do
   use ExUnit.Case, async: true
 
   test "Day 1" do
-    assert Day1.part_one() == 71780
+    assert Day1.part_one() == 71_780
     assert Day1.part_two() == 212_489
   end
 
   test "Day 2" do
-    assert Day2.PartOne.solution() == 10404
-    assert Day2.PartTwo.solution() == 10334
+    assert Day2.PartOne.solution() == 10_404
+    assert Day2.PartTwo.solution() == 10_334
   end
 
   test "Day 3" do
     assert Day3.part_one() == 7850
     assert Day3.part_two() == 2581
+  end
+
+  test "Day 4" do
+    assert Day4.part_one() == 462
+    assert Day4.part_two() == 835
   end
 end
 
@@ -921,15 +1023,15 @@ ExUnit.run()
 <!-- livebook:{"output":true} -->
 
 ```
-...
-Finished in 0.01 seconds (0.01s async, 0.00s sync)
-3 tests, 0 failures
+....
+Finished in 0.03 seconds (0.03s async, 0.00s sync)
+4 tests, 0 failures
 
-Randomized with seed 297110
+Randomized with seed 741231
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-%{excluded: 0, failures: 0, skipped: 0, total: 3}
+%{excluded: 0, failures: 0, skipped: 0, total: 4}
 ```
