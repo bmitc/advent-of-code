@@ -104,12 +104,12 @@ defmodule Stack do
   @doc """
   Push the elements onto the top of the stack and return the stack. The elements
   are not pushed one at a time (thus reversing their order from the order as given)
-  but are instead pushed all at once (the opposite order from if they were pushed
+  but are instead pushed all at once as a group (the opposite order from if they were pushed
   one at a time).
   """
-  @spec push_as_one(__MODULE__.t(stack_type), [stack_type]) :: __MODULE__.t(stack_type)
+  @spec push_as_group(__MODULE__.t(stack_type), [stack_type]) :: __MODULE__.t(stack_type)
         when stack_type: any()
-  def push_as_one(%__MODULE__{elements: elements}, new_elements) do
+  def push_as_group(%__MODULE__{elements: elements}, new_elements) do
     new(new_elements ++ elements)
   end
 
@@ -1100,15 +1100,18 @@ defmodule Day5 do
   alias Stack
 
   @typedoc """
-  Represents a crate where the name of the crate is an integer index
+  Represents a crate's name or identifier as a string
   """
-  @type crate() :: non_neg_integer()
+  @type crate() :: String.t()
 
   @typedoc """
   Represents a single stack of crates
   """
   @type stack() :: Stack.t(crate())
 
+  @typedoc """
+  Represents a stack's name
+  """
   @type stack_name() :: non_neg_integer()
 
   @typedoc """
@@ -1116,12 +1119,12 @@ defmodule Day5 do
   to what stack
   """
   @type move_instruction() :: %{
-          crate: crate(),
+          number_of_crates: non_neg_integer(),
           from: stack_name(),
           to: stack_name()
         }
 
-  @spec initial_stacks() :: [Stack.t()]
+  @spec initial_stacks() :: [stack()]
   def initial_stacks() do
     [
       ["F", "T", "N", "Z", "M", "G", "H", "J"],
@@ -1148,6 +1151,7 @@ defmodule Day5 do
   def parse_move_instruction(string) do
     ["move", number, "from", from, "to", to] = String.split(string, " ", trim: true)
 
+    # The stack numbers 1-indexed in the problem but lists are 0-indexed in Elixir
     %{
       number_of_crates: String.to_integer(number),
       from: String.to_integer(from) - 1,
@@ -1178,7 +1182,8 @@ defmodule Day5 do
         |> Enum.at(move_instruction.from)
         |> Stack.peek()
 
-      # Drop the crate from the "from" stack and push it to the "to" stack
+      # Drop the crate from the "from" stack and push the already peeked
+      # crate to the "to" stack
       stacks
       |> List.update_at(move_instruction.from, &Stack.drop/1)
       |> List.update_at(move_instruction.to, &Stack.push(&1, crate_to_move))
@@ -1201,7 +1206,7 @@ defmodule Day5 do
       move_instruction.from,
       &Stack.drop(&1, move_instruction.number_of_crates)
     )
-    |> List.update_at(move_instruction.to, &Stack.push_as_one(&1, crates_to_move))
+    |> List.update_at(move_instruction.to, &Stack.push_as_group(&1, crates_to_move))
   end
 
   def part_one() do
@@ -1397,7 +1402,7 @@ ExUnit.run()
 
 ```
 .....
-Finished in 0.03 seconds (0.03s async, 0.00s sync)
+Finished in 0.05 seconds (0.05s async, 0.00s sync)
 5 tests, 0 failures
 
 Randomized with seed 741231
