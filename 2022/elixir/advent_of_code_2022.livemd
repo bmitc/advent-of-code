@@ -19,6 +19,14 @@ It is for these reasons that the solutions are somewhat "verbose", if one really
 
 For the most part, solutions are contained within a single `Day<number>` module. Solution values for the two parts are provided as functions `&part_one/0` and `&part_two/0`. However, some days may drastically alter the solution from part one. In cases such as those, two separate modules for the day, such as `Day<number>.PartOne` and `Day<number>.PartTwo`. Solution values in this case are provided as `&solution/0` in the respective module.
 
+## Contents
+
+* [Day 1](#day-1)
+* [Day 2](#day-2)
+* [Day 3](#day-3)
+* [Day 4](#day-4)
+* [Day 5](#day-5)
+
 ## Utilities
 
 ```elixir
