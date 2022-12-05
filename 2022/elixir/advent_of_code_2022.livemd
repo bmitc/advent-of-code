@@ -47,21 +47,21 @@ defmodule Utilities do
   @doc """
   Tests whether the entire string is uppercase
   """
-  @spec is_uppercase(String.t()) :: boolean()
-  def is_uppercase(string), do: string == String.upcase(string)
+  @spec uppercase?(String.t()) :: boolean()
+  def uppercase?(string), do: string == String.upcase(string)
 
   @doc """
   Tests whether the entire string is lowercase
   """
-  @spec is_lowercase(String.t()) :: boolean()
-  def is_lowercase(string), do: string == String.downcase(string)
+  @spec lowercase?(String.t()) :: boolean()
+  def lowercase?(string), do: string == String.downcase(string)
 end
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-{:module, Utilities, <<70, 79, 82, 49, 0, 0, 12, ...>>, {:is_lowercase, 1}}
+{:module, Utilities, <<70, 79, 82, 49, 0, 0, 12, ...>>, {:lowercase?, 1}}
 ```
 
 ## Day 1
@@ -754,7 +754,7 @@ defmodule Day3 do
   def assign_item_priority([char] = charlist) do
     # Note that all codepoints after 'a' and 'A' are sequential up to 'z'
     # and 'Z', respectively.
-    if Utilities.is_lowercase(to_string(charlist)) do
+    if Utilities.lowercase?(to_string(charlist)) do
       # Assigns a -> z the priority 1 -> 26 by normalizing against the codepoint for 'a'
       char - ?a + 1
     else
@@ -1024,7 +1024,7 @@ ExUnit.run()
 
 ```
 ....
-Finished in 0.03 seconds (0.03s async, 0.00s sync)
+Finished in 0.02 seconds (0.02s async, 0.00s sync)
 4 tests, 0 failures
 
 Randomized with seed 741231
