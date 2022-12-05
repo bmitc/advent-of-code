@@ -64,6 +64,107 @@ end
 {:module, Utilities, <<70, 79, 82, 49, 0, 0, 12, ...>>, {:lowercase?, 1}}
 ```
 
+```elixir
+defmodule Stack do
+  @moduledoc """
+  A stack data structure
+  """
+
+  @enforce_keys [:elements]
+  defstruct elements: []
+
+  @typedoc """
+  Represents a stack where the given `element_type` parameter is the type of the
+  stack's elements
+  """
+  @type t(element_type) :: %__MODULE__{
+          elements: list(element_type)
+        }
+
+  @doc """
+  Create a new stack from the given elements. The order of the list is preserved
+  such that the head of the given element list becomes the top of the stack.
+  """
+  @spec new([stack_type]) :: __MODULE__.t(stack_type) when stack_type: any()
+  def new(initial_elements) do
+    %__MODULE__{
+      elements: initial_elements
+    }
+  end
+
+  @doc """
+  Push the element onto the top of the stack and return the stack
+  """
+  @spec push(__MODULE__.t(stack_type), stack_type) :: __MODULE__.t(stack_type)
+        when stack_type: any()
+  def push(%__MODULE__{elements: elements}, element) do
+    new([element | elements])
+  end
+
+  @doc """
+  Push the elements onto the top of the stack and return the stack. The elements
+  are not pushed one at a time (thus reversing their order from the order as given)
+  but are instead pushed all at once (the opposite order from if they were pushed
+  one at a time).
+  """
+  @spec push_as_one(__MODULE__.t(stack_type), [stack_type]) :: __MODULE__.t(stack_type)
+        when stack_type: any()
+  def push_as_one(%__MODULE__{elements: elements}, new_elements) do
+    new(new_elements ++ elements)
+  end
+
+  @doc """
+  Pops the element at the top of the stack off of the stack and returns a tuple
+  consisting of the element and the remaining stack.
+  """
+  @spec pop(__MODULE__.t(stack_type)) :: {stack_type, __MODULE__.t(stack_type)}
+        when stack_type: any()
+  def pop(%__MODULE__{elements: [head | tail]}) do
+    {head, new(tail)}
+  end
+
+  @doc """
+  Peeks the element at the top of the stack and returns it
+  """
+  @spec peek(__MODULE__.t(stack_type)) :: stack_type when stack_type: any()
+  def peek(%__MODULE__{elements: [head | _tail]}) do
+    head
+  end
+
+  @doc """
+  Peeks the number of elements at the top of the stack and returns them
+  """
+  @spec peek(__MODULE__.t(stack_type), integer()) :: stack_type when stack_type: any()
+  def peek(%__MODULE__{elements: elements}, n) do
+    Enum.take(elements, n)
+  end
+
+  @doc """
+  Drops the element at the top of the stack and returns the remaining stack
+  """
+  @spec drop(__MODULE__.t(stack_type)) :: __MODULE__.t(stack_type) when stack_type: any()
+  def drop(%__MODULE__{elements: [_head | tail]}) do
+    new(tail)
+  end
+
+  @doc """
+  Drops the number of elements on top of the stack and returns the remaining stack
+  """
+  @spec drop(__MODULE__.t(stack_type), integer()) :: __MODULE__.t(stack_type)
+        when stack_type: any()
+  def drop(%__MODULE__{elements: elements}, n) do
+    elements_left = Enum.drop(elements, n)
+    new(elements_left)
+  end
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, Stack, <<70, 79, 82, 49, 0, 0, 21, ...>>, {:drop, 2}}
+```
+
 ## Day 1
 
 https://adventofcode.com/2022/day/1
@@ -986,6 +1087,273 @@ Day4.part_two()
 835
 ```
 
+## Day 5
+
+https://adventofcode.com/2022/day/5
+
+```elixir
+defmodule Day5 do
+  @moduledoc """
+  Solutions for Day 5
+  """
+
+  alias Stack
+
+  @typedoc """
+  Represents a crate where the name of the crate is an integer index
+  """
+  @type crate() :: non_neg_integer()
+
+  @typedoc """
+  Represents a single stack of crates
+  """
+  @type stack() :: Stack.t(crate())
+
+  @type stack_name() :: non_neg_integer()
+
+  @typedoc """
+  Represents an instruction that says which crate to move from what stack
+  to what stack
+  """
+  @type move_instruction() :: %{
+          crate: crate(),
+          from: stack_name(),
+          to: stack_name()
+        }
+
+  @spec initial_stacks() :: [Stack.t()]
+  def initial_stacks() do
+    [
+      ["F", "T", "N", "Z", "M", "G", "H", "J"],
+      ["J", "W", "V"],
+      ["H", "T", "B", "J", "L", "V", "G"],
+      ["L", "V", "D", "C", "N", "J", "P", "B"],
+      ["G", "R", "P", "M", "S", "W", "F"],
+      ["M", "V", "N", "B", "F", "C", "H", "G"],
+      ["R", "M", "G", "H", "D"],
+      ["D", "Z", "V", "M", "N", "H"],
+      ["H", "F", "N", "G"]
+    ]
+    |> Enum.map(&Stack.new/1)
+  end
+
+  @doc """
+  Parse an assignment pair string into a tuple of section assignment ranges
+
+  ## Examples:
+    iex> Day4.parse_assignment_pair("2-4,6-8")
+    {2..4, 6..8}
+  """
+  @spec parse_move_instruction(String.t()) :: move_instruction()
+  def parse_move_instruction(string) do
+    ["move", number, "from", from, "to", to] = String.split(string, " ", trim: true)
+
+    %{
+      number_of_crates: String.to_integer(number),
+      from: String.to_integer(from) - 1,
+      to: String.to_integer(to) - 1
+    }
+  end
+
+  @doc """
+  List of all move instructions
+  """
+  @spec move_instructions() :: [move_instruction()]
+  def move_instructions() do
+    Utilities.read_data(5)
+    |> Enum.map(&parse_move_instruction/1)
+  end
+
+  @doc """
+  Handle a move instruction for the case where crates are moved one at a time
+  """
+  @spec handle_move_instruction([stack()], move_instruction()) :: [stack()]
+  def handle_move_instruction(stacks, move_instruction) do
+    # Pop (really peek and drop) and push crates
+    1..move_instruction.number_of_crates
+    |> Enum.reduce(stacks, fn _, stacks ->
+      # Get the crate that will be moved by peeking it from the "from" stack
+      crate_to_move =
+        stacks
+        |> Enum.at(move_instruction.from)
+        |> Stack.peek()
+
+      # Drop the crate from the "from" stack and push it to the "to" stack
+      stacks
+      |> List.update_at(move_instruction.from, &Stack.drop/1)
+      |> List.update_at(move_instruction.to, &Stack.push(&1, crate_to_move))
+    end)
+  end
+
+  @doc """
+  Handle a move instruction for the case where multiple crates are moved at once
+  """
+  @spec handle_move_instruction_in_order([stack()], move_instruction()) :: [stack()]
+  def handle_move_instruction_in_order(stacks, move_instruction) do
+    # Pop (really peek and drop) and push crates
+    crates_to_move =
+      stacks
+      |> Enum.at(move_instruction.from)
+      |> Stack.peek(move_instruction.number_of_crates)
+
+    stacks
+    |> List.update_at(
+      move_instruction.from,
+      &Stack.drop(&1, move_instruction.number_of_crates)
+    )
+    |> List.update_at(move_instruction.to, &Stack.push_as_one(&1, crates_to_move))
+  end
+
+  def part_one() do
+    move_instructions()
+    |> Enum.reduce(initial_stacks(), fn move_instruction, stacks ->
+      handle_move_instruction(stacks, move_instruction)
+    end)
+    # Peek the top of all the final stacks
+    |> Enum.map(&Stack.peek/1)
+    |> Enum.join()
+  end
+
+  def part_two() do
+    move_instructions()
+    |> Enum.reduce(initial_stacks(), fn move_instruction, stacks ->
+      handle_move_instruction_in_order(stacks, move_instruction)
+    end)
+    # Peek the top of all the final stacks
+    |> Enum.map(&Stack.peek/1)
+    |> Enum.join()
+  end
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, Day5, <<70, 79, 82, 49, 0, 0, 27, ...>>, {:part_two, 0}}
+```
+
+```elixir
+Day5.initial_stacks()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[
+  %Stack{elements: ["F", "T", "N", "Z", "M", "G", "H", "J"]},
+  %Stack{elements: ["J", "W", "V"]},
+  %Stack{elements: ["H", "T", "B", "J", "L", "V", "G"]},
+  %Stack{elements: ["L", "V", "D", "C", "N", "J", "P", "B"]},
+  %Stack{elements: ["G", "R", "P", "M", "S", "W", "F"]},
+  %Stack{elements: ["M", "V", "N", "B", "F", "C", "H", "G"]},
+  %Stack{elements: ["R", "M", "G", "H", "D"]},
+  %Stack{elements: ["D", "Z", "V", "M", "N", "H"]},
+  %Stack{elements: ["H", "F", "N", "G"]}
+]
+```
+
+```elixir
+Day5.move_instructions()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[
+  %{from: 3, number_of_crates: 6, to: 2},
+  %{from: 7, number_of_crates: 5, to: 8},
+  %{from: 3, number_of_crates: 1, to: 4},
+  %{from: 3, number_of_crates: 1, to: 4},
+  %{from: 1, number_of_crates: 2, to: 6},
+  %{from: 0, number_of_crates: 2, to: 5},
+  %{from: 5, number_of_crates: 9, to: 0},
+  %{from: 2, number_of_crates: 12, to: 4},
+  %{from: 7, number_of_crates: 1, to: 3},
+  %{from: 0, number_of_crates: 3, to: 4},
+  %{from: 5, number_of_crates: 1, to: 6},
+  %{from: 4, number_of_crates: 10, to: 1},
+  %{from: 4, number_of_crates: 14, to: 0},
+  %{from: 6, number_of_crates: 8, to: 8},
+  %{from: 1, number_of_crates: 11, to: 8},
+  %{from: 2, number_of_crates: 1, to: 8},
+  %{from: 0, number_of_crates: 11, to: 4},
+  %{from: 0, number_of_crates: 2, to: 8},
+  %{from: 3, number_of_crates: 1, to: 7},
+  %{from: 0, number_of_crates: 6, to: 4},
+  %{from: 7, number_of_crates: 1, to: 2},
+  %{from: 4, number_of_crates: 16, to: 0},
+  %{from: 0, number_of_crates: 4, to: 2},
+  %{from: 4, number_of_crates: 1, to: 5},
+  %{from: 2, number_of_crates: 4, to: 3},
+  %{from: 5, number_of_crates: 1, to: 6},
+  %{from: 8, number_of_crates: 21, to: 5},
+  %{from: 0, number_of_crates: 2, to: 8},
+  %{from: 3, number_of_crates: 2, to: 8},
+  %{from: 8, number_of_crates: 5, to: 3},
+  %{from: 0, number_of_crates: 9, to: 5},
+  %{from: 3, number_of_crates: 6, to: 5},
+  %{from: 5, number_of_crates: 1, to: 1},
+  %{from: 6, number_of_crates: 1, to: 5},
+  %{from: 2, number_of_crates: 1, to: 1},
+  %{from: 5, number_of_crates: 8, to: 8},
+  %{from: 0, number_of_crates: 3, to: 7},
+  %{from: 1, number_of_crates: 1, to: 0},
+  %{from: 5, number_of_crates: 13, to: 2},
+  %{from: 0, number_of_crates: 1, to: 8},
+  %{from: 0, number_of_crates: 2, to: 5},
+  %{from: 7, number_of_crates: 3, to: 3},
+  %{from: 3, number_of_crates: 4, to: 8},
+  %{from: 0, number_of_crates: 3, to: 2},
+  %{from: 8, number_of_crates: 22, to: 7},
+  %{from: 1, number_of_crates: 1, to: 8},
+  %{from: 7, number_of_crates: 6, to: 8},
+  %{from: 5, number_of_crates: 15, ...},
+  %{from: 7, ...},
+  %{...},
+  ...
+]
+```
+
+```elixir
+Day5.handle_move_instruction(Day5.initial_stacks(), %{from: 4, number_of_crates: 6, to: 3})
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[
+  %Stack{elements: ["F", "T", "N", "Z", "M", "G", "H", "J"]},
+  %Stack{elements: ["J", "W", "V"]},
+  %Stack{elements: ["H", "T", "B", "J", "L", "V", "G"]},
+  %Stack{elements: ["W", "S", "M", "P", "R", "G", "L", "V", "D", "C", "N", "J", "P", "B"]},
+  %Stack{elements: ["F"]},
+  %Stack{elements: ["M", "V", "N", "B", "F", "C", "H", "G"]},
+  %Stack{elements: ["R", "M", "G", "H", "D"]},
+  %Stack{elements: ["D", "Z", "V", "M", "N", "H"]},
+  %Stack{elements: ["H", "F", "N", "G"]}
+]
+```
+
+```elixir
+Day5.part_one()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+"TDCHVHJTG"
+```
+
+```elixir
+Day5.part_two()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+"NGCMPJLHV"
+```
+
 ## Tests
 
 Writing tests for the solutions is important to re-verify solutions for changes that occur after a solution is first submitted and verified as correct. This ensures the solutions stay correct after refactors.
@@ -1015,6 +1383,11 @@ defmodule AdventOfCode.Tests do
     assert Day4.part_one() == 462
     assert Day4.part_two() == 835
   end
+
+  test "Day 5" do
+    assert Day5.part_one() == "TDCHVHJTG"
+    assert Day5.part_two() == "NGCMPJLHV"
+  end
 end
 
 ExUnit.run()
@@ -1023,9 +1396,9 @@ ExUnit.run()
 <!-- livebook:{"output":true} -->
 
 ```
-....
-Finished in 0.02 seconds (0.02s async, 0.00s sync)
-4 tests, 0 failures
+.....
+Finished in 0.03 seconds (0.03s async, 0.00s sync)
+5 tests, 0 failures
 
 Randomized with seed 741231
 ```
@@ -1033,5 +1406,5 @@ Randomized with seed 741231
 <!-- livebook:{"output":true} -->
 
 ```
-%{excluded: 0, failures: 0, skipped: 0, total: 4}
+%{excluded: 0, failures: 0, skipped: 0, total: 5}
 ```
