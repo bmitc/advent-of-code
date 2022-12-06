@@ -39,17 +39,23 @@ defmodule Utilities do
   Reads the given day's data file of "day_<zero padded day number>_input.txt" as
   a stream
   """
-  @spec read_data(integer()) :: Stream.t()
-  def read_data(day) do
+  @spec read_data(integer(), keyword()) :: Stream.t()
+  def read_data(day, opts \\ [trim: true]) do
     day_as_string =
       day
       |> Integer.to_string()
       |> String.pad_leading(2, "0")
 
-    Path.join(__DIR__, "../data/day_#{day_as_string}_input.txt")
-    |> Path.expand()
-    |> File.stream!()
-    |> Stream.map(&String.trim/1)
+    lines =
+      Path.join(__DIR__, "../data/day_#{day_as_string}_input.txt")
+      |> Path.expand()
+      |> File.stream!()
+
+    if opts[:trim] do
+      Stream.map(lines, &String.trim/1)
+    else
+      lines
+    end
   end
 
   @doc """
@@ -63,13 +69,69 @@ defmodule Utilities do
   """
   @spec lowercase?(String.t()) :: boolean()
   def lowercase?(string), do: string == String.downcase(string)
+
+  @doc """
+  Transposes the given rows. If the rows are not all of the same length, then
+  the lengths are normalized to the shortest row.
+
+  ## Examples:
+    iex> transpose([1, 2, 3], [4, 5, 6])
+    [[1, 2], [3, 4], [5, 6]]
+  """
+  @spec transpose([any()]) :: [any()]
+  def transpose(rows) do
+    rows
+    |> List.zip()
+    |> Enum.map(&Tuple.to_list/1)
+  end
+
+  @doc """
+  Tests if the string is the empty string
+
+  ## Examples:
+    iex> empty?("test")
+    false
+
+    iex> empty?("")
+    true
+  """
+  @spec empty?(String.t()) :: boolean()
+  def empty?(string) do
+    string == ""
+  end
+
+  @doc """
+  Tests if the string is not the empty string
+
+  ## Examples:
+    iex> non_empty?("test")
+    true
+
+    iex> non_empty?("")
+    false
+  """
+  @spec non_empty?(String.t()) :: boolean()
+  def non_empty?(string) do
+    string != ""
+  end
+
+  @doc """
+  Drops the last element of the enum
+  """
+  @spec drop_last(Enum.t()) :: Enum.t()
+  def drop_last(enum) do
+    enum
+    |> Enum.reverse()
+    |> tl()
+    |> Enum.reverse()
+  end
 end
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-{:module, Utilities, <<70, 79, 82, 49, 0, 0, 12, ...>>, {:lowercase?, 1}}
+{:module, Utilities, <<70, 79, 82, 49, 0, 0, 19, ...>>, {:drop_last, 1}}
 ```
 
 ```elixir
@@ -1132,19 +1194,50 @@ defmodule Day5 do
           to: stack_name()
         }
 
+  # @spec initial_stacks() :: [stack()]
+  # def initial_stacks() do
+  #   [
+  #     ["F", "T", "N", "Z", "M", "G", "H", "J"],
+  #     ["J", "W", "V"],
+  #     ["H", "T", "B", "J", "L", "V", "G"],
+  #     ["L", "V", "D", "C", "N", "J", "P", "B"],
+  #     ["G", "R", "P", "M", "S", "W", "F"],
+  #     ["M", "V", "N", "B", "F", "C", "H", "G"],
+  #     ["R", "M", "G", "H", "D"],
+  #     ["D", "Z", "V", "M", "N", "H"],
+  #     ["H", "F", "N", "G"]
+  #   ]
+  #   |> Enum.map(&Stack.new/1)
+  # end
+
+  @doc """
+  List of the initial stacks and their crates
+  """
   @spec initial_stacks() :: [stack()]
   def initial_stacks() do
-    [
-      ["F", "T", "N", "Z", "M", "G", "H", "J"],
-      ["J", "W", "V"],
-      ["H", "T", "B", "J", "L", "V", "G"],
-      ["L", "V", "D", "C", "N", "J", "P", "B"],
-      ["G", "R", "P", "M", "S", "W", "F"],
-      ["M", "V", "N", "B", "F", "C", "H", "G"],
-      ["R", "M", "G", "H", "D"],
-      ["D", "Z", "V", "M", "N", "H"],
-      ["H", "F", "N", "G"]
-    ]
+    Utilities.read_data(5, trim: false)
+    # Get the stack data only, leaving off the instructions
+    |> Enum.take_while(fn s -> s != "\n" end)
+    # Chunk every line into "column" elements
+    |> Enum.map(fn line ->
+      line
+      |> String.codepoints()
+      |> Enum.chunk_every(4)
+      |> Enum.map(&Enum.join/1)
+      |> Enum.map(&String.trim/1)
+    end)
+    # Transpose the lines so as to turn each line into a single stack,
+    # with the first element of the list being the top stack element
+    |> Utilities.transpose()
+    |> Enum.map(fn crates ->
+      crates
+      # Drop the stack number from the end
+      |> Utilities.drop_last()
+      # Get rid of the "empty" crates on top of the real crates
+      |> Enum.filter(&Utilities.non_empty?/1)
+      # Parse the crates to just get the name
+      |> Enum.map(fn "[" <> <<crate::binary-1>> <> "]" -> crate end)
+    end)
     |> Enum.map(&Stack.new/1)
   end
 
@@ -1173,6 +1266,10 @@ defmodule Day5 do
   @spec move_instructions() :: [move_instruction()]
   def move_instructions() do
     Utilities.read_data(5)
+    |> Enum.drop_while(&Utilities.non_empty?/1)
+    |> Enum.map(&String.trim/1)
+    # This gets rid of any remaining empty lines
+    |> Enum.filter(&Utilities.non_empty?/1)
     |> Enum.map(&parse_move_instruction/1)
   end
 
@@ -1242,7 +1339,7 @@ end
 <!-- livebook:{"output":true} -->
 
 ```
-{:module, Day5, <<70, 79, 82, 49, 0, 0, 27, ...>>, {:part_two, 0}}
+{:module, Day5, <<70, 79, 82, 49, 0, 0, 31, ...>>, {:part_two, 0}}
 ```
 
 ```elixir
@@ -1367,6 +1464,30 @@ Day5.part_two()
 "NGCMPJLHV"
 ```
 
+## Day 6
+
+```elixir
+defmodule Day6 do
+  @moduledoc """
+  Solutions to Day 6
+  """
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, Day6, <<70, 79, 82, 49, 0, 0, 5, ...>>, :ok}
+```
+
+```elixir
+Day6.part_one()
+```
+
+```elixir
+Day6.part_two()
+```
+
 ## Tests
 
 Writing tests for the solutions is important to re-verify solutions for changes that occur after a solution is first submitted and verified as correct. This ensures the solutions stay correct after refactors.
@@ -1401,6 +1522,11 @@ defmodule AdventOfCode.Tests do
     assert Day5.part_one() == "TDCHVHJTG"
     assert Day5.part_two() == "NGCMPJLHV"
   end
+
+  test "Day 6" do
+    assert Day6.part_one() == "TDCHVHJTG"
+    assert Day6.part_two() == "NGCMPJLHV"
+  end
 end
 
 ExUnit.run()
@@ -1409,15 +1535,30 @@ ExUnit.run()
 <!-- livebook:{"output":true} -->
 
 ```
-.....
-Finished in 0.05 seconds (0.05s async, 0.00s sync)
-5 tests, 0 failures
+.
+
+  1) test Day 6 (AdventOfCode.Tests)
+     Documents/GitHub/advent-of-code/2022/elixir/advent_of_code_2022.livemd#cell:xliqbtz3cnvroeakm7ja2e6usuhps3io:31
+     ** (UndefinedFunctionError) function Day6.part_one/0 is undefined or private
+     stacktrace:
+       Day6.part_one()
+       Documents/GitHub/advent-of-code/2022/elixir/advent_of_code_2022.livemd#cell:xliqbtz3cnvroeakm7ja2e6usuhps3io:32: (test)
+
+....
+Finished in 0.04 seconds (0.04s async, 0.00s sync)
+6 tests, 1 failure
 
 Randomized with seed 741231
+warning: Day6.part_one/0 is undefined or private
+  Documents/GitHub/advent-of-code/2022/elixir/advent_of_code_2022.livemd#cell:xliqbtz3cnvroeakm7ja2e6usuhps3io:32: AdventOfCode.Tests."test Day 6"/1
+
+warning: Day6.part_two/0 is undefined or private
+  Documents/GitHub/advent-of-code/2022/elixir/advent_of_code_2022.livemd#cell:xliqbtz3cnvroeakm7ja2e6usuhps3io:33: AdventOfCode.Tests."test Day 6"/1
+
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-%{excluded: 0, failures: 0, skipped: 0, total: 5}
+%{excluded: 0, failures: 1, skipped: 0, total: 6}
 ```
