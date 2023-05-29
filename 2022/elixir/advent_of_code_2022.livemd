@@ -27,6 +27,7 @@ For the most part, solutions are contained within a single `Day<number>` module.
 * [Day 4](#day-4)
 * [Day 5](#day-5)
 * [Day 6](#day-6)
+* [Day 7](#day-7)
 
 ## Utilities
 
@@ -1475,6 +1476,8 @@ Day5.part_two()
 
 ## Day 6
 
+https://adventofcode.com/2022/day/6
+
 ```elixir
 defmodule Day6 do
   @moduledoc """
@@ -1606,6 +1609,282 @@ Day6.part_two()
 2851
 ```
 
+## Day 7
+
+https://adventofcode.com/2022/day/7
+
+```elixir
+defmodule Day7 do
+  @moduledoc """
+  Solutions to Day 7
+  """
+
+  @type structured_input() ::
+          {:command, :change_directory, String.t()}
+          | {:command, :list}
+          | {:directory, name :: String.t()}
+          | {:file, name :: String.t(), size :: integer()}
+
+  @type directory_tree() ::
+          {:directory, name :: String.t(), children :: directory_tree()}
+          | {:file, name :: String.t(), size :: integer()}
+
+  @spec parse_input(String.t()) :: structured_input()
+  def parse_input("$ cd " <> directory) do
+    {:command, :change_directory, directory}
+  end
+
+  def parse_input("$ ls") do
+    {:command, :list}
+  end
+
+  def parse_input("dir " <> name) do
+    {:directory, name}
+  end
+
+  def parse_input(file) do
+    [size, name] = String.split(file, " ", trim: true)
+    {:file, name, String.to_integer(size)}
+  end
+
+  @example_filesystem %{
+    /: %{
+      a: %{
+        e: %{
+          i: 584
+        },
+        f: 29116,
+        g: 2557,
+        "h.lst": 62596
+      },
+      "b.txt": 14_848_514,
+      "c.dat": 8_504_156,
+      d: %{
+        j: 4_060_174,
+        "d.log": 8_033_020,
+        "d.ext": 5_626_152,
+        k: 7_214_296
+      }
+    }
+  }
+
+  def calculate_directory_size(%{/: children} = filesystem) do
+    Map.put(filesystem, :size, children |> Enum.map(&calculate_directory_size/1) |> Enum.sum())
+  end
+
+  # def calculate_directory_size(%{filename => size}) when is_atom(filename) and is_integer(size) do
+  #   size
+  # end
+
+  # def calculate_directory_size(%{directory => children})
+  #     when is_atom(directory) and is_map(children) do
+  #   %{
+  #     directory => children,
+  #     size: children |> Enum.map(&calculate_directory_size/1) |> Enum.sum()
+  #   }
+  # end
+
+  @doc """
+  List of all the incoming data
+  """
+  @spec inputs() :: [structured_input()]
+  def inputs() do
+    Utilities.read_data(7)
+    |> Stream.map(&parse_input/1)
+    |> Enum.to_list()
+  end
+
+  def get_directory_access(base_directory, directory) do
+    base_directory
+    |> Path.join(directory)
+    |> Path.split()
+  end
+
+  def filesystem_builder({:command, :change_directory, "/"}, {_current_directory, filesystem}) do
+    {"/", filesystem}
+  end
+
+  def filesystem_builder({:command, :change_directory, ".."}, {current_directory, filesystem}) do
+    {Path.dirname(current_directory), filesystem}
+  end
+
+  def filesystem_builder(
+        {:command, :change_directory, directory},
+        {current_directory, filesystem}
+      ) do
+    {Path.join(current_directory, directory), filesystem}
+  end
+
+  def filesystem_builder({:command, :list}, state) do
+    state
+  end
+
+  def filesystem_builder({:directory, name}, {current_directory, filesystem}) do
+    IO.inspect(current_directory, label: "current directory")
+    IO.inspect(filesystem, label: "filesystem")
+    {current_directory, put_in(filesystem, get_directory_access(current_directory, name), %{})}
+  end
+
+  def filesystem_builder({:file, name, size}, {current_directory, filesystem}) do
+    new_filesystem =
+      filesystem
+      |> put_in(get_directory_access(current_directory, name), size)
+
+    {current_directory, new_filesystem}
+  end
+
+  def build_filesystem() do
+    inputs()
+    |> List.foldl({nil, %{"/" => nil}}, &filesystem_builder/2)
+  end
+
+  def part_one() do
+    2
+  end
+
+  def part_two() do
+    2
+  end
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+warning: module attribute @example_filesystem was set but never used
+  Documents/GitHub/advent-of-code/2022/elixir/advent_of_code_2022.livemd#cell:j6ujhu4gs6hshx7iax2bwa5q7btykmwe:34
+
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, Day7, <<70, 79, 82, 49, 0, 0, 22, ...>>, {:part_two, 0}}
+```
+
+```elixir
+Enum.map(%{a: 1, b: 2}, fn x -> x end)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[a: 1, b: 2]
+```
+
+```elixir
+Day7.inputs()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[
+  {:command, :change_directory, "/"},
+  {:command, :list},
+  {:directory, "ccjp"},
+  {:file, "hglnvs.bsh", 328708},
+  {:directory, "hpsnpc"},
+  {:directory, "pcb"},
+  {:directory, "pntzm"},
+  {:directory, "pzg"},
+  {:directory, "thfgwwsp"},
+  {:command, :change_directory, "ccjp"},
+  {:command, :list},
+  {:file, "dlz", 159990},
+  {:directory, "mbtsvblj"},
+  {:file, "nppbjl.qhg", 165076},
+  {:command, :change_directory, "mbtsvblj"},
+  {:command, :list},
+  {:file, "frqsf.nsv", 34806},
+  {:directory, "ppq"},
+  {:directory, "ptht"},
+  {:directory, "rgmvdwt"},
+  {:command, :change_directory, "ppq"},
+  {:command, :list},
+  {:file, "dhzp", 266252},
+  {:command, :change_directory, ".."},
+  {:command, :change_directory, "ptht"},
+  {:command, :list},
+  {:directory, "jbnj"},
+  {:directory, "zcbnwhzd"},
+  {:command, :change_directory, "jbnj"},
+  {:command, :list},
+  {:directory, "clscr"},
+  {:file, "zwtwf.zfz", 145780},
+  {:command, :change_directory, "clscr"},
+  {:command, :list},
+  {:file, "dhzp", 249531},
+  {:command, :change_directory, ".."},
+  {:command, :change_directory, ".."},
+  {:command, :change_directory, "zcbnwhzd"},
+  {:command, :list},
+  {:directory, "mbtsvblj"},
+  {:command, :change_directory, "mbtsvblj"},
+  {:command, :list},
+  {:file, "pjhvzjt.brz", 258527},
+  {:command, :change_directory, ".."},
+  {:command, :change_directory, ".."},
+  {:command, :change_directory, ".."},
+  {:command, :change_directory, "rgmvdwt"},
+  {:command, :list},
+  {:file, ...},
+  {...},
+  ...
+]
+```
+
+```elixir
+Day7.get_directory_access("/", "ccjp")
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+["/", "ccjp"]
+```
+
+```elixir
+put_in(%{}, ["ccjp"], %{"/" => nil})
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{"ccjp" => %{"/" => nil}}
+```
+
+```elixir
+Day7.build_filesystem()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+current directory: "/"
+filesystem: %{"/" => nil}
+```
+
+```elixir
+Day7.part_one()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+2
+```
+
+```elixir
+Day7.part_two()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+2
+```
+
 ## Tests
 
 Writing tests for the solutions is important to re-verify solutions for changes that occur after a solution is first submitted and verified as correct. This ensures the solutions stay correct after refactors.
@@ -1645,6 +1924,11 @@ defmodule AdventOfCode.Tests do
     assert Day6.part_one() == 1794
     assert Day6.part_two() == 2851
   end
+
+  test "Day 7" do
+    assert Day7.part_one() == 1794
+    assert Day7.part_two() == 2851
+  end
 end
 
 ExUnit.run()
@@ -1654,14 +1938,25 @@ ExUnit.run()
 
 ```
 ......
-Finished in 0.04 seconds (0.04s async, 0.00s sync)
-6 tests, 0 failures
 
-Randomized with seed 741231
+  1) test Day 7 (AdventOfCode.Tests)
+     Documents/GitHub/advent-of-code/2022/elixir/advent_of_code_2022.livemd#cell:e5gr53niynkx7csnbjw53hy2qzhgy7uq:36
+     Assertion with == failed
+     code:  assert Day7.part_one() == 1794
+     left:  2
+     right: 1794
+     stacktrace:
+       Documents/GitHub/advent-of-code/2022/elixir/advent_of_code_2022.livemd#cell:e5gr53niynkx7csnbjw53hy2qzhgy7uq:37: (test)
+
+
+Finished in 0.05 seconds (0.05s async, 0.00s sync)
+7 tests, 1 failure
+
+Randomized with seed 187784
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-%{excluded: 0, failures: 0, skipped: 0, total: 6}
+%{excluded: 0, failures: 1, skipped: 0, total: 7}
 ```
